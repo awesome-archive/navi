@@ -1,28 +1,75 @@
 #!/usr/bin/env bash
 
-selection::dict() {
-   local -r str="$(cat)"
+SELECTION_ESCAPE_STR="   "
 
-   local -r tags="$(echo "$str" | awk -F'[' '{print $NF}' | tr -d ']')"
-   local -r core="$(echo "$str" | sed -e "s/ \[${tags}\]$//")"
-
-   dict::new core "$core" tags "$tags"
+selection_str::cleanup() {
+   sed -E "s/  +/${SELECTION_ESCAPE_STR}/g"
 }
 
-selection::core_is_comment() {
-   grep -qE '^#'
+selection_str::without_ellipsis() {
+   tr -d "…"
 }
 
-selection::cmd() {
-   local -r selection="$1"
-   local -r cheat="$2"
+selection_str::comment() {
+   echo "$*" | awk -F "${SELECTION_ESCAPE_STR}" '{print $1}' | selection_str::without_ellipsis
+}
 
-   local -r core="$(echo "$selection" | dict::get core)"
+selection_str::snippet() {
+   echo "$*" | awk -F "${SELECTION_ESCAPE_STR}" '{print $2}' | selection_str::without_ellipsis
+}
 
-   if echo "$core" | selection::core_is_comment; then
-      grep "$core" "$cheat" -A999 \
-         | str::last_paragraph_line
+selection_str::tags() {
+   echo "$*" | awk -F "${SELECTION_ESCAPE_STR}" '{print $3}' | selection_str::without_ellipsis
+}
+
+selection::resolve_ellipsis() {
+   local -r str="$(selection_str::cleanup)"
+   local -r cheats="$*"
+
+   if echo "$str" | grep -q "…"; then
+      local -r comment="$(selection_str::comment "$str")"
+      local -r snippet="$(selection_str::snippet "$str")"
+      local -r tags="$(selection_str::tags "$str")"
+      local -r cheat="$(cheat::from_tags "$cheats" "$tags")"
+
+      local -r tags2="$(echo "$cheat" | head -n1 | str::sub 2)"
+      local -r comment2="$(echo "$cheat" | grep "$comment" | str::last_line | str::sub 2)"
+      local -r snippet2="$(echo "$cheat" | grep "$comment2" -A 999| str::last_paragraph_line)"
+
+      echo "${comment2}${SELECTION_ESCAPE_STR}${snippet2}${SELECTION_ESCAPE_STR}${tags2}"
    else
-      echo "$core"
+      echo "$str"
    fi
+}
+
+selection::dict() {
+   local -r cheats="$1"
+   local -r key="${2:-}"
+   local -r str="$(selection::resolve_ellipsis "$cheats")"
+
+   local -r comment="$(selection_str::comment "$str")"
+   local -r snippet="$(selection_str::snippet "$str")"
+   local -r tags="$(selection_str::tags "$str")"
+
+   dict::new comment "$comment" snippet "$snippet" tags "$tags" key "$key" | sed "s/'''/'/g"
+}
+
+selection::comment() {
+   local -r selection="$1"
+   dict::get "$selection" comment
+}
+
+selection::snippet() {
+   local -r selection="$1"
+   dict::get "$selection" snippet
+}
+
+selection::tags() {
+   local -r selection="$1"
+   dict::get "$selection" tags
+}
+
+selection::key() {
+   local -r selection="$1"
+   dict::get "$selection" key
 }

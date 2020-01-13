@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-export SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-
 # please refer to https://github.com/denisidoro/dotfiles/blob/master/scripts/code/beautify
 
-cd "${SCRIPT_DIR}"
-find . -iname '*.sh' | xargs -I% dot code beautify %
-find scripts/* | xargs -I% dot code beautify %
-find shell/* | xargs -I% dot code beautify %
-dot code beautify "${SCRIPT_DIR}/test/run"
-dot code beautify "${SCRIPT_DIR}/navi"
+export NAVI_HOME="$(cd "$(dirname "$0")/.." && pwd)"
+
+files_to_lint() {
+   find . -iname '*.sh'
+   find scripts/*
+   echo "${NAVI_HOME}/test/run"
+   echo "${NAVI_HOME}/navi"
+}
+
+for f in $(files_to_lint); do
+   dot code beautify "$f"
+done

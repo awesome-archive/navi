@@ -1,51 +1,52 @@
 #!/usr/bin/env bash
 
-DICT_DELIMITER='\f'
+# for an explanation behind this namespace, please check
+# https://medium.com/@den.isidoro/dictionaries-in-shell-scripts-61d34e1c91c6
 
-dict::_post() {
-   sed -E 's/; /\\n/g' | awk 'NF > 0' | dict::_unescape_value | sort
-}
+# LIMITATIONS:
+# values with non-trivial whitespaces (newlines, subsequent spaces, etc)
+# aren't handled very well
 
 dict::new() {
    if [ $# = 0 ]; then
       echo ""
    else
-      echo "" | dict::assoc "$@"
+      echo "" | dict::assoc "$@" | str::remove_empty_lines
    fi
 }
 
 dict::dissoc() {
    local -r key="$1"
 
-   grep -Ev "^${key}[^:]*:" | dict::_post
+   grep -Ev "^[\s]*${key}[^:]*:"
 }
 
-dict::_escape_value() {
-   tr '\n' "$DICT_DELIMITER"
+dict::escape_value() {
+   tr '\n' "$ESCAPE_CHAR" | sed 's/\\n/'$(printf "$ESCAPE_CHAR")'/g'
 }
 
-dict::_unescape_value() {
-   tr "$DICT_DELIMITER" '\n'
+str::without_trailing_newline() {
+   printf "%s" "$(cat)"
+   echo
+}
+
+dict::unescape_value() {
+   tr "$ESCAPE_CHAR" '\n' | str::without_trailing_newline
 }
 
 dict::assoc() {
    local -r key="${1:-}"
-   local -r value="$(echo "${2:-}" | dict::_escape_value)"
    local -r input="$(cat)"
 
    if [ -z $key ]; then
-      printf "$input" | dict::_post
+      printf "$(echo "$input" | tr '%' "$ESCAPE_CHAR_2")" | tr "$ESCAPE_CHAR_2" '%'
       return
    fi
 
-   if [ -n "$input" ]; then
-      local -r base="$(printf "$input" | dict::dissoc "$key"); "
-   else
-      local -r base=""
-   fi
+   local -r value="$(echo "${2:-}" | dict::escape_value)"
 
    shift 2
-   printf "${base}${key}: ${value}" | dict::_post | dict::assoc "$@" | dict::_post
+   echo "$(echo "$input" | dict::dissoc "$key")${key}: ${value}\n" | dict::assoc "$@"
 }
 
 dict::get() {
@@ -62,18 +63,20 @@ dict::get() {
    local -r matches="$(echo "$result" | wc -l || echo 0)"
 
    if [ $matches -gt 1 ]; then
-      echo "$result" | dict::_unescape_value
+      echo "$result" | dict::unescape_value
    else
-      echo "$result" | sed -E "s/${prefix}//" | dict::_unescape_value
+      echo "$result" | sed -E "s/${prefix}//" | dict::unescape_value
    fi
 }
 
 dict::keys() {
-   grep -Eo '^[^:]+: ' | sed 's/: //g'
+   grep -Eo '^[^:]+: ' \
+      | sed 's/: //g'
 }
 
 dict::values() {
-   awk -F':' '{$1=""; print $0}' | cut -c3-
+   awk -F':' '{$1=""; print $0}' \
+      | cut -c3-
 }
 
 dict::zipmap() {
@@ -104,7 +107,7 @@ dict::update() {
    local -r input="$(cat)"
 
    local -r value="$(echo "$input" | dict::get "$key")"
-   local -r updated_value="$(eval "$fn" "$value")"
+   local -r updated_value="$("$fn" "$value")"
 
    echo "$input" | dict::assoc "$key" "$updated_value"
 }

@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-export SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+export NAVI_HOME="$(cd "$(dirname "$0")/.." && pwd)"
 
 script() {
    echo "#!/usr/bin/env bash"
-   echo "${SCRIPT_DIR}/navi" '"$@"'
+   echo "${NAVI_HOME}/navi" '"$@"'
 }
 
-BIN="/usr/local/bin/navi"
-script > "$BIN"
-chmod +x "$BIN"
+folder="${1:-/usr/local/bin}"
+bin="${folder}/navi"
+
+script > "$bin"
+chmod +x "$bin"

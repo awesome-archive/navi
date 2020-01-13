@@ -1,26 +1,28 @@
-# navi <img src="https://user-images.githubusercontent.com/3226564/65362934-b4432500-dbdf-11e9-8f75-815fbc5cbf8f.png" alt="icon" height="28px"/> [![CircleCI](https://circleci.com/gh/denisidoro/navi.svg?style=svg)](https://circleci.com/gh/denisidoro/navi) 
+# navi <img src="https://user-images.githubusercontent.com/3226564/65362934-b4432500-dbdf-11e9-8f75-815fbc5cbf8f.png" alt="icon" height="28px"/> [![CircleCI](https://circleci.com/gh/denisidoro/navi.svg?style=svg)](https://circleci.com/gh/denisidoro/navi) ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/denisidoro/navi?include_prereleases)
 
-An interactive cheatsheet tool for the command-line so that you'll never say the following again:
+An interactive cheatsheet tool for the command-line so that you won't say the following anymore:
 
 >— *How to run that command again?*<br>
-— *Oh, it's not in my bash history*<br>
+— *Oh, it's not in my shell history*<br>
 — *Geez, it's almost what I wanted but I need to change some args*
 
-![Demo](https://user-images.githubusercontent.com/3226564/65389667-0181dc80-dd2f-11e9-9fac-c875ed7c7b53.gif)
+![Demo](https://user-images.githubusercontent.com/3226564/67864139-ebbcbf80-fb03-11e9-9abb-8e6664f77915.gif)
 
-**navi** allows you to browse through cheatsheets (that you may write yourself or download from maintainers) and execute commands, prompting for argument values.
+**navi** allows you to browse through cheatsheets (that you may write yourself or download from maintainers) and execute commands, with argument values prompted to you.
 
-Table of Contents
+Table of contents
 -----------------
 
    * [Installation](#installation)
       * [Using Homebrew or Linuxbrew](#using-homebrew-or-linuxbrew)
       * [Using git](#using-git)
+      * [Using oh-my-zsh](#using-oh-my-zsh)
    * [Upgrading](#upgrading)
    * [Usage](#usage)
       * [Preventing execution](#preventing-execution)
       * [Pre-filtering](#pre-filtering)
       * [Searching online repositories](#searching-online-repositories)
+      * [Shell widget](#shell-widget)
       * [More options](#more-options)
    * [Trying out online](#trying-out-online)
    * [Motivation](#motivation)
@@ -30,7 +32,8 @@ Table of Contents
    * [Cheatsheet syntax](#cheatsheet-syntax)
       * [Syntax overview](#syntax-overview)
       * [Variables](#variables)
-      * [FZF options](#fzf-options)
+      * [Table formatting](#table-formatting)
+   * [List customization](#list-customization)
    * [Related projects](#related-projects)
    * [Etymology](#etymology)
 
@@ -42,27 +45,73 @@ Installation
 You can use [Homebrew](http://brew.sh/) or [Linuxbrew](http://linuxbrew.sh/)
 to install **navi**:
 ```sh
-brew install denisidoro/tools/navi
+brew install navi
 ```
 
 ### Using git
 
-Alternatively, you can `git clone` this repository and run `make`:
+Alternatively, you can `git clone` this repository:
 
 ```sh
-git clone --depth 1 http://github.com/denisidoro/navi /opt/navi
+git clone --depth 1 https://github.com/denisidoro/navi /opt/navi
 cd /opt/navi
-sudo make install
-# install fzf: https://github.com/junegunn/fzf
+
+# to install in your $PATH
+sudo make install 
+
+# to install in an arbitrary folder
+./scripts/install /some/path
+
+# install fzf
+# refer to https://github.com/junegunn/fzf
 ```
+
+### Using oh-my-zsh
+
+Make sure that your oh-my-zsh `$ZSH_CUSTOM` directory is configured, then clone navi into the plugins directory.
+```sh
+plugins_dir="$ZSH_CUSTOM/plugins"
+mkdir -p "$plugins_dir"
+cd "$plugins_dir"
+git clone https://github.com/denisidoro/navi
+```
+
+Then, add it to the oh-my-zsh plugin array to automatically enable the zsh widget:
+```sh
+plugins=(docker tmux fzf navi)
+```
+
+Lastly, reload your `zshrc` or spawn a new terminal to load navi. Once this is done, you should be able to use it 
+as a [shell widget](#shell-widget) with no additional setup.
+
+> Please note that when installing as an oh-my-zsh plugin, `navi` will not be available as a command. If you also want 
+> to be able to run the command interactively, you will need to do one of the following: 
+
+- Install it to /usr/bin/local (via `sudo make install`)
+- Manually set `$PATH` so that navi can be found.
+
+You can manually update your path by adding a line like this in your `.zshrc`:
+
+```sh
+export PATH=$PATH:"$ZSH_CUSTOM/plugins/navi"
+```
+
+And verify that it works by running `which navi` after reloading your configuration.
+
 
 Upgrading
 ---------
 
 **navi** is being actively developed and you might want to upgrade it once in a while. Please follow the instruction below depending on the installation method used:
 
-- brew: `brew update; brew reinstall navi`
-- git: `cd /opt/navi && sudo make update`
+```sh
+# brew
+brew upgrade navi
+
+# git or oh-my-zsh
+cd "$(navi home)"
+git pull
+```
 
 Usage
 -----
@@ -71,7 +120,7 @@ By simply running `navi` you will be prompted with the default cheatsheets.
 
 ### Preventing execution
 
-If you run `navi --print`, the selected command won't be executed. It will be printed to stdout instead.
+If you run `navi --print`, the selected snippet won't be executed. It will be printed to stdout instead.
 
 ### Pre-filtering
 
@@ -81,7 +130,28 @@ If you run `navi query <cmd>`, the results will be pre-filtered.
 
 If you run `navi search <cmd>`, **navi** will try to download cheatsheets from online repositories as well.
 
-Please note that these cheatsheets aren't curated by **navi**'s maintainers and should be taken with a grain of salt. If you're not sure about executing these commands, make sure to check the preview window or use the `--print` option.
+Please note that these cheatsheets aren't curated by **navi**'s maintainers and should be taken with a grain of salt. If you're not sure about executing these snippets, make sure to check the preview window or use the `--print` option.
+
+### Shell widget
+
+You can use **navi** as a widget to your shell. This way, your history is correctly populated and you can edit the command as you wish before executing it.
+
+In order to use it, add this line to your `.bashrc`-like file:
+```sh
+# bash
+source "$(navi widget bash)"
+
+# zsh
+source "$(navi widget zsh)"
+
+# fish
+source (navi widget fish)
+```
+
+By default, `Ctrl+G` is assigned to launching **navi**. If you want to change the keybinding, replace the argument of `bind` or `bindkey` in [the widget file](https://github.com/denisidoro/navi/search?q=filename%3Anavi.plugin.*&unscoped_q=filename%3Anavi.plugin.*).
+
+If you want a widget for other shells, please upvote [this issue](https://github.com/denisidoro/navi/issues/37).
+
 
 ### More options
 
@@ -96,7 +166,7 @@ Motivation
 ----------
 
 The main objectives are:
-- to increase discoverability, by finding commands given keywords or descriptions;
+- to increase discoverability, by finding snippets given keywords or descriptions;
 - to prevent you from running auxiliar commands, copying the result into the clipboard and then pasting into the original command;
 - to easily share one-liners with others so that they don't need to figure out how to write the commands;
 - to improve terminal usage as a whole.
@@ -105,7 +175,7 @@ Sure, you can find autocompleters out there for all your favorite commands. Howe
 
 Or you can launch a browser and search for instructions on Google, but that takes some time.
 
-**navi**, on the other hand, intends to be a general purpose platform for bookmarking any command at a very low cost.
+**navi**, on the other hand, intends to be a general purpose platform for bookmarking any snippet at a very low cost.
 
 Cheatsheets
 -----------
@@ -152,6 +222,8 @@ $ branch: git branch | awk '{print $NF}'
 
 The interface prompts for variable names inside brackets (eg `<branch>`).
 
+Variable names should only include alphanumeric characters and `_`.
+
 The command for generating possible inputs can refer other variables:
 ```sh
 # If you select 2 for x, the possible values of y will be 12 and 22
@@ -161,23 +233,34 @@ $ x: echo -e '1\n2\n3'
 $ y: echo -e "$((x+10))\n$((x+20))"
 ```
 
-### FZF options
+### Table formatting
 
-You can make pick a specific column of a selection and set the number of lines considered as headers:
+You can pick a specific column of a selection and set the number of lines considered as headers:
 
 ```sh
 # This will pick the 3rd column and use the first line as header
 docker rmi <image_id>
 
-$ image_id: docker images --- --headers 1 --column 3
+$ image_id: docker images --- --column 3 --headers 1
 ```
+
+List customization
+------------------
+
+Lists can be stylized with the [$FZF_DEFAULT_OPTS](https://github.com/junegunn/fzf) environment variable. This way, you can change the [color scheme](https://github.com/junegunn/fzf/wiki/Color-schemes), for example.
+
+In addition:
+- the `--fzf-overrides` option allows you to hide columns, for example
+- the `--col-widths` option allows you to limit column widths
+
+Please refer to `navi --help` for more details.
 
 Related projects
 ----------------
 
 There are many similar projects out there ([bro](https://github.com/hubsmoke/bro), [eg](https://github.com/srsudar/eg), [cheat.sh](https://github.com/chubin/cheat.sh), [tldr](https://github.com/tldr-pages/tldr), [cmdmenu](https://github.com/amacfie/cmdmenu), [cheat](https://github.com/cheat/cheat), [beavr](https://github.com/denisidoro/beavr), [how2](https://github.com/santinic/how2) and [howdoi](https://github.com/gleitz/howdoi), to name a few).
 
-Most of them provide excellent cheatsheet repositories, but lack a nice UI.
+Most of them provide excellent cheatsheet repositories, but lack a nice UI and argument suggestions.
 
 In any case, **navi** has the option to [search for some of these repositories](#searching-online-repositories).
 

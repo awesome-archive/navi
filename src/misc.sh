@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
 
-# no-op hack to set dependency order resolution
-dep() {
-   :
+command_exists() {
+   local -r cmd="${1:-}"
+   [ -n $cmd ] && type "$cmd" &> /dev/null
 }
 
-command_exists() {
-   type "$1" &> /dev/null
+platform::existing_command() {
+   local cmd
+   for cmd in "$@"; do
+      if command_exists "$cmd"; then
+         echo "$cmd"
+         return 0
+      fi
+   done
+   return 1
 }
 
 echoerr() {
@@ -14,13 +21,29 @@ echoerr() {
 }
 
 url::open() {
-   if command_exists xdg-open; then
-      xdg-open "$@"
-   elif command_exists open; then
-      open "$@"
-   elif command_exists google-chrome; then
-      google-chrome "$@"
-   elif command_exists firefox; then
-      firefox "$@"
+   local -r cmd="$(platform::existing_command "${BROWSER:-}" xdg-open open google-chrome firefox)"
+   "$cmd" "$@" & disown
+}
+
+tap() {
+   local -r input="$(cat)"
+   echoerr "$input"
+   echo "$input"
+}
+
+die() {
+   echoerr "$@"
+   exit 42
+}
+
+or() {
+   local -r x="$(cat)"
+   local -r y="${1:-}"
+
+   if [ -n "$x" ]; then
+      echo "$x"
+   elif [ $# -gt 0 ]; then
+      shift
+      echo "$y" | or "$@"
    fi
 }
